@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
-
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {CountersUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
@@ -36,6 +35,7 @@ contract Dollar is
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
     bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+
     // Events
     event AccountBlocked(address indexed addr);
     event AccountUnblocked(address indexed addr);
@@ -46,9 +46,11 @@ contract Dollar is
     error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
     error ERC20InvalidApprover(address approver);
     error ERC20InvalidSpender(address spender);
+
     // ERC2612 Errors
     error ERC2612ExpiredDeadline(uint256 deadline, uint256 blockTimestamp);
     error ERC2612InvalidSignature(address owner, address spender);
+    
     // Dollar Errors
     error DollarInvalidMintReceiver(address receiver);
     error DollarInvalidBurnSender(address sender);
@@ -57,6 +59,7 @@ contract Dollar is
     error DollarBlockedSender(address sender);
     error DollarInvalidBlockedAccount(address account);
     error DollarPausedTransfers();
+
     function initialize(string memory name_, string memory symbol_, address owner) external initializer {
         _name = name_;
         _symbol = symbol_;
@@ -106,8 +109,6 @@ contract Dollar is
         uint256 shares = convertToDollars(amount);
         _totalDollars += shares;
         unchecked {
-            // Overflow not possible: shares + shares amount is at most totalDollars + shares amount
-            // which is checked above.
             _shares[to] += shares;
         }
         _afterTokenTransfer(address(0), to, amount);
@@ -127,7 +128,6 @@ contract Dollar is
         }
         unchecked {
             _shares[account] = accountDollars - shares;
-            // Overflow not possible: amount <= accountDollars <= totalDollars.
             _totalDollars -= shares;
         }
         _afterTokenTransfer(account, address(0), amount);
@@ -161,8 +161,6 @@ contract Dollar is
         }
         unchecked {
             _shares[from] = fromDollars - shares;
-            // Overflow not possible: the sum of all shares is capped by totalDollars, and the sum is preserved by
-            // decrementing then incrementing.
             _shares[to] += shares;
         }
         _afterTokenTransfer(from, to, amount);
@@ -283,18 +281,6 @@ contract Dollar is
         current = nonce.current();
         nonce.increment();
     }
-
-    /**
-     * @notice Allows an owner to approve a spender with a one-time signature, bypassing the need for a transaction.
-     * @dev Uses the EIP-2612 standard.
-     * @param owner The address of the token owner.
-     * @param spender The address of the spender.
-     * @param value The amount of tokens to be approved.
-     * @param deadline The expiration time of the signature, specified as a Unix timestamp.
-     * @param v The recovery byte of the signature.
-     * @param r The first 32 bytes of the signature.
-     * @param s The second 32 bytes of the signature.
-     */
     function permit(
         address owner,
         address spender,
